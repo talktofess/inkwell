@@ -12,7 +12,7 @@ import type {
 
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await db()
-    .from("projects")
+    .from("inkwell_projects")
     .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -22,7 +22,7 @@ export async function getProjects(): Promise<Project[]> {
 /** Map of projectId → total scene word count, for dashboard progress bars. */
 export async function getWordTotals(): Promise<Record<string, number>> {
   const { data, error } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .select("project_id, word_count, type");
   if (error) throw error;
   const totals: Record<string, number> = {};
@@ -34,14 +34,14 @@ export async function getWordTotals(): Promise<Record<string, number>> {
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const { data, error } = await db().from("projects").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db().from("inkwell_projects").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return (data as Project) ?? null;
 }
 
 export async function getDocuments(projectId: string): Promise<DocNode[]> {
   const { data, error } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .select("*")
     .eq("project_id", projectId)
     .order("position", { ascending: true });
@@ -50,14 +50,14 @@ export async function getDocuments(projectId: string): Promise<DocNode[]> {
 }
 
 export async function getDocument(id: string): Promise<DocNode | null> {
-  const { data, error } = await db().from("documents").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db().from("inkwell_documents").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return (data as DocNode) ?? null;
 }
 
 export async function getEntities(projectId: string): Promise<Entity[]> {
   const { data, error } = await db()
-    .from("entities")
+    .from("inkwell_entities")
     .select("*")
     .eq("project_id", projectId)
     .order("type")
@@ -68,7 +68,7 @@ export async function getEntities(projectId: string): Promise<Entity[]> {
 
 export async function getRelationships(projectId: string): Promise<EntityRelationship[]> {
   const { data, error } = await db()
-    .from("entity_relationships")
+    .from("inkwell_entity_relationships")
     .select("*")
     .eq("project_id", projectId);
   if (error) throw error;
@@ -77,7 +77,7 @@ export async function getRelationships(projectId: string): Promise<EntityRelatio
 
 export async function getNotes(projectId: string): Promise<Note[]> {
   const { data, error } = await db()
-    .from("notes")
+    .from("inkwell_notes")
     .select("*")
     .eq("project_id", projectId)
     .order("pinned", { ascending: false })
@@ -88,7 +88,7 @@ export async function getNotes(projectId: string): Promise<Note[]> {
 
 export async function getSnapshots(documentId: string): Promise<Snapshot[]> {
   const { data, error } = await db()
-    .from("snapshots")
+    .from("inkwell_snapshots")
     .select("id, document_id, project_id, word_count, label, kind, created_at, content_text")
     .eq("document_id", documentId)
     .order("created_at", { ascending: false });
@@ -97,14 +97,14 @@ export async function getSnapshots(documentId: string): Promise<Snapshot[]> {
 }
 
 export async function getSnapshot(id: string): Promise<Snapshot | null> {
-  const { data, error } = await db().from("snapshots").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db().from("inkwell_snapshots").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return (data as Snapshot) ?? null;
 }
 
 export async function getSessions(projectId: string): Promise<WritingSession[]> {
   const { data, error } = await db()
-    .from("writing_sessions")
+    .from("inkwell_writing_sessions")
     .select("*")
     .eq("project_id", projectId)
     .order("day", { ascending: true });

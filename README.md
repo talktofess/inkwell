@@ -42,10 +42,20 @@ history, and one-click export. Built with **Next.js** (App Router) and
 
 ### 1. Create the database
 
-1. Make a project at [supabase.com](https://supabase.com/dashboard).
-2. Open the **SQL editor** and run [`supabase/schema.sql`](supabase/schema.sql).
-3. From **Project Settings → API**, copy your project URL and the
+Inkwell **shares the same Supabase project as the vault/wallet apps** — every
+table is namespaced with an `inkwell_` prefix, so it coexists with `vault_keys`,
+`items`, etc. without collisions.
+
+1. Open the existing Supabase project (the one vault/wallet use).
+2. In the **SQL editor**, run [`supabase/schema.sql`](supabase/schema.sql). It is
+   idempotent and only creates `inkwell_*` objects, leaving the vault tables
+   untouched.
+3. From **Project Settings → API**, copy the project URL and the
    **`service_role`** key (keep this secret).
+
+> Inkwell only ever talks to the database with the **service-role** key, server-
+> side. It does not use Supabase Auth and is not granted access to the vault
+> tables — the two apps are isolated at the table level.
 
 ### 2. Configure environment
 

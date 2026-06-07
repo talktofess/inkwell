@@ -14,7 +14,7 @@ export async function createProject(formData: FormData) {
   const color = String(formData.get("cover_color") || "#6366f1");
 
   const { data: project, error } = await db()
-    .from("projects")
+    .from("inkwell_projects")
     .insert({
       title,
       author,
@@ -29,7 +29,7 @@ export async function createProject(formData: FormData) {
 
   // Seed a starter structure: a chapter with one scene.
   const { data: chapter } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .insert({
       project_id: project.id,
       type: "chapter",
@@ -39,7 +39,7 @@ export async function createProject(formData: FormData) {
     .select("id")
     .single();
 
-  await db().from("documents").insert({
+  await db().from("inkwell_documents").insert({
     project_id: project.id,
     parent_id: chapter?.id ?? null,
     type: "scene",
@@ -53,14 +53,14 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(id: string, patch: Record<string, unknown>) {
-  const { error } = await db().from("projects").update(patch).eq("id", id);
+  const { error } = await db().from("inkwell_projects").update(patch).eq("id", id);
   if (error) throw error;
   revalidatePath(`/project/${id}`);
   revalidatePath("/");
 }
 
 export async function deleteProject(id: string) {
-  const { error } = await db().from("projects").delete().eq("id", id);
+  const { error } = await db().from("inkwell_projects").delete().eq("id", id);
   if (error) throw error;
   revalidatePath("/");
   redirect("/");

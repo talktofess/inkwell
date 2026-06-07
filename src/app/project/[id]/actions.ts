@@ -8,7 +8,7 @@ import type { DocType, EntityType, NoteKind } from "@/lib/types";
 // ── document tree ───────────────────────────────────────────────────────────
 async function nextPosition(projectId: string, parentId: string | null): Promise<number> {
   const query = db()
-    .from("documents")
+    .from("inkwell_documents")
     .select("position")
     .eq("project_id", projectId)
     .order("position", { ascending: false })
@@ -28,7 +28,7 @@ export async function createDocument(
 ): Promise<string> {
   const position = await nextPosition(projectId, parentId);
   const { data, error } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .insert({
       project_id: projectId,
       parent_id: parentId,
@@ -45,7 +45,7 @@ export async function createDocument(
 }
 
 export async function renameDocument(projectId: string, id: string, title: string) {
-  const { error } = await db().from("documents").update({ title }).eq("id", id);
+  const { error } = await db().from("inkwell_documents").update({ title }).eq("id", id);
   if (error) throw error;
   revalidatePath(`/project/${projectId}`);
 }
@@ -55,7 +55,7 @@ export async function updateDocumentMeta(
   id: string,
   patch: Record<string, unknown>
 ) {
-  const { error } = await db().from("documents").update(patch).eq("id", id);
+  const { error } = await db().from("inkwell_documents").update(patch).eq("id", id);
   if (error) throw error;
   revalidatePath(`/project/${projectId}`);
 }
@@ -76,14 +76,14 @@ export async function saveDocumentContent(
   const words = countWords(text);
 
   const { data: prev } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .select("word_count")
     .eq("id", id)
     .maybeSingle();
   const prevWords = prev?.word_count ?? 0;
 
   const { error } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .update({ content, content_text: text, word_count: words })
     .eq("id", id);
   if (error) throw error;
@@ -91,14 +91,14 @@ export async function saveDocumentContent(
   const added = Math.max(0, words - prevWords);
   if (added > 0 || minutesDelta > 0) {
     const { data: existing } = await db()
-      .from("writing_sessions")
+      .from("inkwell_writing_sessions")
       .select("id, words_added, minutes")
       .eq("project_id", projectId)
       .eq("day", day)
       .maybeSingle();
     if (existing) {
       await db()
-        .from("writing_sessions")
+        .from("inkwell_writing_sessions")
         .update({
           words_added: existing.words_added + added,
           minutes: existing.minutes + minutesDelta,
@@ -106,7 +106,7 @@ export async function saveDocumentContent(
         .eq("id", existing.id);
     } else {
       await db()
-        .from("writing_sessions")
+        .from("inkwell_writing_sessions")
         .insert({ project_id: projectId, day, words_added: added, minutes: minutesDelta });
     }
   }
@@ -119,11 +119,11 @@ export async function moveDocument(
   newParentId: string | null,
   orderedIds: string[]
 ) {
-  await db().from("documents").update({ parent_id: newParentId }).eq("id", id);
+  await db().from("inkwell_documents").update({ parent_id: newParentId }).eq("id", id);
   // Reindex siblings to match the provided order.
   await Promise.all(
     orderedIds.map((docId, index) =>
-      db().from("documents").update({ position: index }).eq("id", docId)
+      db().from("inkwell_documents").update({ position: index }).eq("id", docId)
     )
   );
   revalidatePath(`/project/${projectId}`);
@@ -132,14 +132,14 @@ export async function moveDocument(
 export async function reorderSiblings(projectId: string, orderedIds: string[]) {
   await Promise.all(
     orderedIds.map((docId, index) =>
-      db().from("documents").update({ position: index }).eq("id", docId)
+      db().from("inkwell_documents").update({ position: index }).eq("id", docId)
     )
   );
   revalidatePath(`/project/${projectId}`);
 }
 
 export async function deleteDocument(projectId: string, id: string) {
-  const { error } = await db().from("documents").delete().eq("id", id);
+  const { error } = await db().from("inkwell_documents").delete().eq("id", id);
   if (error) throw error;
   revalidatePath(`/project/${projectId}`);
 }
@@ -152,12 +152,12 @@ export async function createSnapshot(
   kind: "manual" | "auto" = "manual"
 ) {
   const { data: doc } = await db()
-    .from("documents")
+    .from("inkwell_documents")
     .select("content, content_text, word_count")
     .eq("id", documentId)
     .maybeSingle();
   if (!doc) return;
-  const { error } = await db().from("snapshots").insert({
+  const { error } = await db().from("inkwell_snapshots").insert({
     project_id: projectId,
     document_id: documentId,
     content: doc.content,
@@ -172,7 +172,7 @@ export async function createSnapshot(
 
 export async function restoreSnapshot(projectId: string, snapshotId: string) {
   const { data: snap } = await db()
-    .from("snapshots")
+    .from("inkwell_snapshots")
     .select("*")
     .eq("id", snapshotId)
     .maybeSingle();
@@ -180,7 +180,7 @@ export async function restoreSnapshot(projectId: string, snapshotId: string) {
   // Snapshot current state first so a restore is itself reversible.
   await createSnapshot(projectId, snap.document_id, "Before restore", "auto");
   await db()
-    .from("documents")
+    .from("inkwell_documents")
     .update({
       content: snap.content,
       content_text: snap.content_text,
@@ -191,14 +191,14 @@ export async function restoreSnapshot(projectId: string, snapshotId: string) {
 }
 
 export async function deleteSnapshot(projectId: string, snapshotId: string) {
-  await db().from("snapshots").delete().eq("id", snapshotId);
+  await db().from("inkwell_snapshots").delete().eq("id", snapshotId);
   revalidatePath(`/project/${projectId}`);
 }
 
 // ── story bible (entities) ───────────────────────────────────────────────────
 export async function createEntity(projectId: string, type: EntityType, name?: string): Promise<string> {
   const { data, error } = await db()
-    .from("entities")
+    .from("inkwell_entities")
     .insert({ project_id: projectId, type, name: name ?? "New " + type })
     .select("id")
     .single();
@@ -212,13 +212,13 @@ export async function updateEntity(
   id: string,
   patch: Record<string, unknown>
 ) {
-  const { error } = await db().from("entities").update(patch).eq("id", id);
+  const { error } = await db().from("inkwell_entities").update(patch).eq("id", id);
   if (error) throw error;
   revalidatePath(`/project/${projectId}`);
 }
 
 export async function deleteEntity(projectId: string, id: string) {
-  await db().from("entities").delete().eq("id", id);
+  await db().from("inkwell_entities").delete().eq("id", id);
   revalidatePath(`/project/${projectId}`);
 }
 
@@ -229,20 +229,20 @@ export async function createRelationship(
   label: string
 ) {
   await db()
-    .from("entity_relationships")
+    .from("inkwell_entity_relationships")
     .insert({ project_id: projectId, from_entity: fromEntity, to_entity: toEntity, label });
   revalidatePath(`/project/${projectId}`);
 }
 
 export async function deleteRelationship(projectId: string, id: string) {
-  await db().from("entity_relationships").delete().eq("id", id);
+  await db().from("inkwell_entity_relationships").delete().eq("id", id);
   revalidatePath(`/project/${projectId}`);
 }
 
 // ── notes / ideas inbox ──────────────────────────────────────────────────────
 export async function createNote(projectId: string, kind: NoteKind): Promise<string> {
   const { data, error } = await db()
-    .from("notes")
+    .from("inkwell_notes")
     .insert({ project_id: projectId, kind, title: "", body: "" })
     .select("id")
     .single();
@@ -252,31 +252,31 @@ export async function createNote(projectId: string, kind: NoteKind): Promise<str
 }
 
 export async function updateNote(projectId: string, id: string, patch: Record<string, unknown>) {
-  await db().from("notes").update(patch).eq("id", id);
+  await db().from("inkwell_notes").update(patch).eq("id", id);
   revalidatePath(`/project/${projectId}`);
 }
 
 export async function deleteNote(projectId: string, id: string) {
-  await db().from("notes").delete().eq("id", id);
+  await db().from("inkwell_notes").delete().eq("id", id);
   revalidatePath(`/project/${projectId}`);
 }
 
 // ── manual session minutes (sprint timer) ────────────────────────────────────
 export async function logSprintMinutes(projectId: string, day: string, minutes: number) {
   const { data: existing } = await db()
-    .from("writing_sessions")
+    .from("inkwell_writing_sessions")
     .select("id, minutes")
     .eq("project_id", projectId)
     .eq("day", day)
     .maybeSingle();
   if (existing) {
     await db()
-      .from("writing_sessions")
+      .from("inkwell_writing_sessions")
       .update({ minutes: existing.minutes + minutes })
       .eq("id", existing.id);
   } else {
     await db()
-      .from("writing_sessions")
+      .from("inkwell_writing_sessions")
       .insert({ project_id: projectId, day, words_added: 0, minutes });
   }
   revalidatePath(`/project/${projectId}`);
