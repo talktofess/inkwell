@@ -10,6 +10,7 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/unlock") ||
+    pathname.startsWith("/api/health") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname === "/manifest.webmanifest";
