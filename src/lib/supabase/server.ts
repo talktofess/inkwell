@@ -1,9 +1,16 @@
 import "server-only";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import WebSocket from "ws";
 
 // A server-only Supabase client using the service-role key. This must NEVER be
 // imported into a client component — the `server-only` package will throw at
 // build time if it is. All database access in Inkwell flows through here.
+//
+// supabase-js initialises a Realtime client in its constructor, and the bundled
+// realtime-js throws on Node < 22 when there's no native `WebSocket`. We never
+// use Realtime, but we still must satisfy the constructor — so we hand it the
+// `ws` implementation as the transport. Harmless on Node 22+ (where a native
+// WebSocket exists) and on Vercel.
 
 let cached: SupabaseClient | null = null;
 
@@ -22,6 +29,7 @@ export function db(): SupabaseClient {
 
   cached = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
   });
   return cached;
 }

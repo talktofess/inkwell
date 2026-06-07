@@ -167,5 +167,27 @@ alter table inkwell_entities             enable row level security;
 alter table inkwell_entity_relationships enable row level security;
 alter table inkwell_notes                enable row level security;
 alter table inkwell_writing_sessions     enable row level security;
--- (No policies and no grants to anon/authenticated: only the service-role key
---  gets through — which is all the Inkwell server ever uses.)
+-- (No policies: with RLS on and no policies, anon/authenticated see nothing.)
+
+-- ── grant the secret key (service_role) explicit access ────────────────────
+-- The Inkwell server connects with the Supabase *secret* key, which uses the
+-- `service_role` Postgres role. service_role has BYPASSRLS, but table-level
+-- GRANTs are a SEPARATE permission. In a shared project whose default
+-- privileges may have been altered (e.g. tables created over a direct postgres
+-- connection — exactly why vault's `items` returns "permission denied"), we
+-- grant explicitly so Inkwell never hits that. anon/authenticated are NOT
+-- granted, keeping Inkwell isolated from the vault/wallet client keys.
+grant usage on schema public to service_role;
+grant all privileges on
+  inkwell_projects,
+  inkwell_documents,
+  inkwell_snapshots,
+  inkwell_entities,
+  inkwell_entity_relationships,
+  inkwell_notes,
+  inkwell_writing_sessions
+  to service_role;
+
+-- Tell PostgREST to pick up the new tables immediately (Supabase usually does
+-- this automatically on SQL-editor DDL; harmless to be explicit).
+notify pgrst, 'reload schema';
